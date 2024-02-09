@@ -57,7 +57,7 @@ const PRODUCT_NAME = 'SOLUSD-PERP'; // Replace with the desired product name
 
 /**
  * Creates a Trader Account (TRG) for a specified MPG.
- * Consumes 0.54 SOL in rent, which is refundable upon account closure.
+ * Consumes ~0.16 SOL in rent, which is refundable upon account closure.
  */
 const createTrg = async () => {
     const manifest = await dexterity.getManifest(rpc, true, wallet);
