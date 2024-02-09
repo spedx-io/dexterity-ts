@@ -1,7 +1,7 @@
 {
     "name": "@pepperdex/dexterity-ts",
     "repository": "https://github.com/spedx-io/dexterity-ts",
-    "version": "1.0.2",
+    "version": "1.0.3",
     "license": "MIT",
     "source": "src/index.ts",
     "main": "dist/main.js",
@@ -9,7 +9,9 @@
     "types": "dist/types.d.ts",
     "scripts": {
         "watch": "yarn parcel watch",
-        "build": "yarn parcel build"
+        "build": "yarn parcel build",
+        "publish": "npm publish --access public",
+        "test": "node ./tests/local-debug/src/test.cjs"
     },
     "dependencies": {
         "@bonfida/aaob": "0.0.3",
