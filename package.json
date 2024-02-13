@@ -1,7 +1,7 @@
 {
     "name": "@pepperdex/dexterity-ts",
     "repository": "https://github.com/spedx-io/dexterity-ts",
-    "version": "1.0.5",
+    "version": "1.0.7",
     "license": "MIT",
     "source": "src/index.ts",
     "main": "dist/main.js",
@@ -27,12 +27,12 @@
         "ws": "^8.9.0"
     },
     "devDependencies": {
-        "@parcel/packager-ts": "^2.4.1",
-        "@parcel/transformer-typescript-types": "^2.4.1",
+        "@parcel/packager-ts": "^2.11.0",
+        "@parcel/transformer-typescript-types": "^2.11.0",
         "assert": "^2.0.0",
         "esbuild": "^0.15.16",
         "esbuild-plugin-inline-image": "^0.0.9",
-        "parcel": "^2.4.1",
+        "parcel": "^2.11.0",
         "process": "^0.11.10"
     }
 }
