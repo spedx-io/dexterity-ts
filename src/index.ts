@@ -57,7 +57,7 @@ const INSTRUMENT_TYPE_EXPIRING_CALL = 2;
 let rpc2manifest = new Map(); // maps rpc url to manifest (AAOB, DEX, FEES, RISK, MPGs, products, orderbooks, etc.)
 let account2WebSocket = new Map(); // maps rpc:account to websocket
 
-enum OrderType {
+export enum OrderType {
     Limit,
     ImmediateOrCancel,
     FillOrKill,
