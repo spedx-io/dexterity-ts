@@ -1123,48 +1123,6 @@ export class Manifest {
         return result;
     }
 
-    async getFills(productName: string, trg: web3.PublicKey, mpg: web3.PublicKey, before?: number, limit?: number, after?: number) {
-        try {
-            let url = `${this.base_api_url}/fills?product=${productName}`;
-            if (trg != null) {
-                url += `&trg=${trg}`;
-            }
-            if (mpg != null) {
-                url += `&mpg=${mpg}`;
-            }
-            if (before != null && before > 0) {
-                url += `&before=${before}`;
-            }
-            if (limit != null && limit > 0) {
-                url += `&limit=${limit}`
-            }
-            if (after != null && after > 0) {
-                url += `&after=${after}`;
-            }
-            const response = await fetch(url, {
-                method: 'GET',
-                headers: {
-                    Accept: 'application/json',
-                },
-            });
-
-            if (!response.ok) {
-                throw new Error(`Failed to fetch fills: ${response.status}`);
-            }
-
-            const result = (await response.json()) as GetFillsResponse;
-            return result;
-        } catch (error) {
-            if (error instanceof Error) {
-                console.log('error message: ', error.message);
-                return
-            } else {
-                console.log('unexpected error: ', error);
-                return
-            }
-        }
-    }
-
     async updateOrderbooks(marketProductGroup: web3.PublicKey) {
         const { pubkey, mpg, orderbooks } = this.fields.mpgs.get(marketProductGroup.toBase58());
         for (let [productName, { index, product }] of Manifest.GetActiveProductsOfMPG(mpg)) {
@@ -1819,109 +1777,150 @@ export class Trader {
         return m;
     }
 
-        /**
+    /**
      * Get avg entry of open positions
      * 
      * @param {string[]} products Filter the positions returned by the function by product names
      * @returns 
      */
-        async getPositionsAvgEntry(products?: string[]): Promise<AvgEntries[]> {
-            const positions = Array.from(this.getPositions())
-                .filter(([productName, size]) => Number(size) !== 0 && (!products || products.includes(productName.trim())))
-                .map(([productName, size]) => ({
-                    size: Number(size),
-                    isLong: Number(size) > 0,
-                    productName: productName.trim(),
-                }));
-        
-            if (positions.length === 0) return [];
-        
-            let positionsAvgEntry: AvgEntries[] = [];
-        
-            for (const position of positions) {
-                let sumAgg: FillAgg[] = [];
-                let before = 0;
-                let fillsCount = 0;
-                let noMoreFills = false
-        
-                while (Math.abs(this.getSizeSum(sumAgg)) < Math.abs(position.size)) {
-                    const data = await this.manifest.getFills(
-                        position.productName,
-                        this.traderRiskGroup,
-                        this.marketProductGroup,
-                        before,
-                        50,
-                    );
-        
-                    if (data.fills.length === 0) break;
-        
-                    for (const fill of data.fills) {
-                        const fillOrderIsBuy =
-                            fill.taker_trg === this.traderRiskGroup.toBase58()
-                                ? fill.taker_side === "bid"
-                                : fill.taker_side === "ask";
-                        let fillSize = fillOrderIsBuy ? fill.base_size : -fill.base_size;
-                        if (!position.isLong) fillSize = -fillSize;
-        
-                        sumAgg.push({ size: fillSize, price: fill.price});
-                        fillsCount++;
-        
-                        before = new Date(fill.block_timestamp).getTime() + 1;
-                    }
-        
-                    if (Math.abs(this.getSizeSum(sumAgg)) >= Math.abs(position.size)) {
-                        break;
-                    }
-    
-                    if (data.fills.length < 50) {
-                        noMoreFills = true
-                        break
-                    }
-                }
-        
-                const avgEntry = this.getAvgFillPrice(sumAgg);
-                const positionObj = {
-                    productName: position.productName,
-                    avgEntry,
-                    size: position.size,
-                    isLong: position.isLong,
-                }
-    
-                if (noMoreFills) {
-                    positionObj["error"] = "Fills data missing."
-                }
-    
-                positionsAvgEntry.push(positionObj);
-            }
-        
-            return positionsAvgEntry;
-        }
-    
-        private getAvgFillPrice(fills: FillAgg[]): number {
-            let totalSize = 0;
-            let weightedPriceSum = 0;
-          
-            fills.forEach((fill) => {
-              const absoluteSize = Math.abs(fill.size);
-              totalSize += absoluteSize;
-              weightedPriceSum += fill.price * absoluteSize;
+    async getPositionsAvgEntry(products?: string[]): Promise<AvgEntries[]> {
+        const positions = Array.from(this.getPositions())
+            .filter(([productName, size]) => Number(size) !== 0 && (!products || products.includes(productName.trim())))
+            .map(([productName, size]) => ({
+                size: Number(size),
+                isLong: Number(size) > 0,
+                productName: productName.trim(),
+            }));
+      
+        if (positions.length === 0) return [];
+      
+        const positionsAvgEntry: AvgEntries[] = [];
+      
+        for (const position of positions) {
+            const avgEntry = await this.calculateAverageEntryPrice(position.productName, position.size, this.traderRiskGroup.toBase58());
+            
+            positionsAvgEntry.push({
+                productName: position.productName,
+                avgEntry,
+                size: position.size,
+                isLong: position.isLong,
             });
-          
-            if (totalSize === 0) {
-              return 0;
+        }
+      
+        return positionsAvgEntry;
+      }
+      
+      async getFills(productName: string, trg: web3.PublicKey, mpg?: web3.PublicKey, before?: number, limit?: number, after?: number) {
+        try {
+            let url = `${this.manifest.base_api_url}/fills?product=${productName}`;
+            if (trg != null) {
+                url += `&trg=${trg}`;
             }
-          
-            const averagePrice = weightedPriceSum / totalSize;
-            return averagePrice;
-        }
-    
-        private getSizeSum(arr: FillAgg[]): number {
-            let sum = 0;
-            arr.forEach((fill) => {
-              sum += fill.size;
+            if (mpg != null) {
+                url += `&mpg=${mpg}`;
+            }
+            if (before != null && before > 0) {
+                url += `&before=${before}`;
+            }
+            if (limit != null && limit > 0) {
+                url += `&limit=${limit}`
+            }
+            if (after != null && after > 0) {
+                url += `&after=${after}`;
+            }
+            const response = await fetch(url, {
+                method: 'GET',
+                headers: {
+                    Accept: 'application/json',
+                },
             });
-            return sum;
+      
+            if (!response.ok) {
+                throw new Error(`Failed to fetch fills: ${response.status}`);
+            }
+      
+            const result = (await response.json()) as GetFillsResponse;
+            return result;
+        } catch (error) {
+            if (error instanceof Error) {
+                console.log('error message: ', error.message);
+                return
+            } else {
+                console.log('unexpected error: ', error);
+                return
+            }
         }
+      }
+
+      async calculateAverageEntryPrice(
+        product: string,
+        targetSize: number,
+        trg: string
+      ): Promise<number> {
+        let totalCost = 0;
+        let netPosition = 0;
+        let avgEntryPrice = 0;
+        let before: number | undefined;
+      
+        const isShort = targetSize < 0;
+        const absTargetSize = Math.abs(targetSize);
+      
+        do {
+          let fills = (
+            await this.getFills(
+              product.trim(),
+              new web3.PublicKey(trg),
+              undefined,
+              before
+            )
+          )?.fills;
+      
+          if (!fills) {
+            console.log("No fills");
+            break;
+          }
+      
+          if (fills.length === 0) {
+            console.log("Empty");
+            break;
+          }
+      
+          for (const fill of fills) {
+            if (fill.taker_side === (isShort ? "ask" : "bid")) {
+              // Entering or increasing a position
+              const effectiveSize = isShort ? -fill.base_size : fill.base_size;
+              if (Math.abs(netPosition) + Math.abs(effectiveSize) >= absTargetSize) {
+                const partialSize = absTargetSize - Math.abs(netPosition);
+                totalCost += partialSize * fill.price * (isShort ? -1 : 1);
+                netPosition +=
+                  effectiveSize * (partialSize / Math.abs(effectiveSize));
+                break;
+              } else {
+                totalCost += effectiveSize * fill.price;
+                netPosition += effectiveSize;
+              }
+            } else if (fill.taker_side === (isShort ? "bid" : "ask")) {
+              // Reducing a position
+              totalCost -= fill.base_size * fill.price * (isShort ? -1 : 1);
+              netPosition -= fill.base_size * (isShort ? -1 : 1);
+            }
+      
+            if (Math.abs(netPosition) >= absTargetSize) break;
+          }
+      
+          const lastFillTimestamp = fills[fills.length - 1]?.block_timestamp;
+          before = lastFillTimestamp
+            ? new Date(lastFillTimestamp).getTime() / 1000
+            : undefined;
+        } while (Math.abs(netPosition) < absTargetSize);
+      
+        if (netPosition !== 0)
+          avgEntryPrice = Math.abs(
+            Math.floor((totalCost / netPosition) * 1000) / 1000
+          );
+      
+        return avgEntryPrice;
+    }
 
     getMultiplaceIx(productIndex, orders, referrerTrg=null, referrerFeeBps=null, matchLimit=null) {
         
