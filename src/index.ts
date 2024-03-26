@@ -105,6 +105,7 @@ export interface TraderRiskGroup {
         productIndex: number;
         productKey: web3.PublicKey;
         position: SimpleFractional;
+        pendingPosition: SimpleFractional;
     }>;
 
     cashBalance: SimpleFractional;
@@ -1757,7 +1758,7 @@ export class Trader {
             const fillEvents = hasEventQueue ?
                 Manifest.FillsFromEventQueue(this.eventQueues.get(pkStr), meta) :
                 [];
-            let qty = Fractional.From(p.position);
+            let qty = Fractional.From(p.position).add(Fractional.From(p.pendingPosition));
             for (const order of this.getOpenOrders([name])) {
                 for (const fill of fillEvents) {
                     if (fill.makerOrderId.eq(order.id)) {
@@ -2974,7 +2975,7 @@ export class Trader {
             if (p.productKey.toBase58() === UNINITIALIZED || "uninitialized" in p.tag) {
                 continue;
             }
-            sum = sum.add(Fractional.From(p.position).mul(Manifest.GetMarkPrice(this.markPrices, p.productKey)));
+            sum = sum.add(Fractional.From(p.position).add(Fractional.From(p.pendingPosition)).mul(Manifest.GetMarkPrice(this.markPrices, p.productKey)));
         }
         return sum;
     }
