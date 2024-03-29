@@ -148,21 +148,21 @@ type SimpleFractional = {
 };
 
 const bnSqrt = (num: BN): BN => {
-  if(num.lt(new BN(0))) {
-    throw new Error("Sqrt only works on non-negtiave inputs")
-  }
-  if(num.lt(new BN(2))) {
-    return num
-  }
+    if (num.lt(new BN(0))) {
+        throw new Error("Sqrt only works on non-negtiave inputs")
+    }
+    if (num.lt(new BN(2))) {
+        return num
+    }
 
-  const smallCand = bnSqrt(num.shrn(2)).shln(1)
-  const largeCand = smallCand.add(new BN(1))
+    const smallCand = bnSqrt(num.shrn(2)).shln(1)
+    const largeCand = smallCand.add(new BN(1))
 
-  if (largeCand.mul(largeCand).gt(num)) {
-    return smallCand
-  } else {
-    return largeCand
-  }
+    if (largeCand.mul(largeCand).gt(num)) {
+        return smallCand
+    } else {
+        return largeCand
+    }
 }
 
 class ReliableWebSocket {
@@ -177,8 +177,8 @@ class ReliableWebSocket {
     }
     close() {
         if (--this.ref == 0) {
-          this.isClosed = true;
-          this.socket.close();
+            this.isClosed = true;
+            this.socket.close();
         }
     }
     addRef() {
@@ -337,7 +337,7 @@ export class Manifest {
                 // console.debug('server closed the websocket to', pkStr, 'so we re-opened it');
             });
             this.rws = new ReliableWebSocket(socket);
-            socket.addEventListener('open', _ => {});
+            socket.addEventListener('open', _ => { });
             this.wsId2SubscriptionId = new Map();
             this.pk2SubscriptionId = new Map();
             this.pk2LastUpdateTimestamp = new Map();
@@ -911,12 +911,12 @@ export class Manifest {
         const socket = this.accountSubscribe(
             oraclePubkey,
             async (data, manifest) => {
-                const expOffset = 4*4 + 4;
-                const twapOffset = 4*4 + 4*4 + 8*2;
-                const expData = data.slice(expOffset, expOffset+4);
-                const twapData = data.slice(twapOffset, twapOffset+8);
-                const exp = new BN(expData, undefined, 'le').fromTwos(8*4).abs();
-                const twap = new BN(twapData, undefined, 'le').fromTwos(8*8);
+                const expOffset = 4 * 4 + 4;
+                const twapOffset = 4 * 4 + 4 * 4 + 8 * 2;
+                const expData = data.slice(expOffset, expOffset + 4);
+                const twapData = data.slice(twapOffset, twapOffset + 8);
+                const exp = new BN(expData, undefined, 'le').fromTwos(8 * 4).abs();
+                const twap = new BN(twapData, undefined, 'le').fromTwos(8 * 8);
                 return new Fractional(twap, exp);
             },
             onUpdateFn,
@@ -928,14 +928,14 @@ export class Manifest {
         const socket = this.accountSubscribe(
             oraclePubkey,
             async (data, manifest) => {
-                const expOffset = 4*4 + 4;
-                const aggOffset = 4*4 + 4*4 + 8*2 + 24*2 + 8 + 1 + 1 + 2 + 4 + 32*2 + 8*4;
+                const expOffset = 4 * 4 + 4;
+                const aggOffset = 4 * 4 + 4 * 4 + 8 * 2 + 24 * 2 + 8 + 1 + 1 + 2 + 4 + 32 * 2 + 8 * 4;
                 // this variable is named "agg" because that's what it's called in the pyth struct
                 // see "PriceAccountPythnet" in https://github.com/pyth-network/pyth-client/blob/main/program/rust/src/accounts/price.rs
-                const expData = data.slice(expOffset, expOffset+4);
-                const aggData = data.slice(aggOffset, aggOffset+8);
-                const exp = new BN(expData, undefined, 'le').fromTwos(8*4).abs();
-                const agg = new BN(aggData, undefined, 'le').fromTwos(8*8);
+                const expData = data.slice(expOffset, expOffset + 4);
+                const aggData = data.slice(aggOffset, aggOffset + 8);
+                const exp = new BN(expData, undefined, 'le').fromTwos(8 * 4).abs();
+                const agg = new BN(aggData, undefined, 'le').fromTwos(8 * 8);
                 return new Fractional(agg, exp);
             },
             onUpdateFn,
@@ -1009,16 +1009,19 @@ export class Manifest {
                 })
             );
             try {
-                let {blockhash} = await connection.getRecentBlockhash();
+                let { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash();
                 tx.recentBlockhash = blockhash;
                 tx.feePayer = wallet.publicKey;
                 const signedTx = await wallet.signTransaction(tx);
                 const sig = await connection.sendRawTransaction(signedTx.serialize());
-                await connection.confirmTransaction(sig); // TODO: indicate to user that the transaction is being confirmed
+                await connection.confirmTransaction({
+                    signature: sig,
+                    blockhash,
+                    lastValidBlockHeight
+                });
+                return { sig }
             } catch (e) {
-                console.error(e);
-                console.error(e.logs);
-                return null;
+                return e;
             }
         }
     }
@@ -1043,37 +1046,42 @@ export class Manifest {
             const tx = new web3.Transaction().add(
                 await dexProgram.account.traderRiskGroup.createInstruction(traderRiskGroup, TRG_SIZE)
             ).add(
-                await dexProgram.instruction.initializeTraderRiskGroup({ accounts: {
-                    owner: wallet.publicKey,
-                    traderRiskGroup: traderRiskGroup.publicKey,
-                    marketProductGroup: marketProductGroup,
-                    riskSigner: riskAndFeeSigner,
-                    traderRiskStateAcct: riskStateAccount.publicKey,
-                    traderFeeStateAcct: traderFeeAccount,
-                    riskEngineProgram: mpg.riskEngineProgramId,
-                    feeModelConfigurationAcct: mpg.feeModelConfigurationAcct,
-                    feeModelProgram: mpg.feeModelProgramId,
-                    systemProgram: web3.SystemProgram.programId,
-                }})
+                await dexProgram.instruction.initializeTraderRiskGroup({
+                    accounts: {
+                        owner: wallet.publicKey,
+                        traderRiskGroup: traderRiskGroup.publicKey,
+                        marketProductGroup: marketProductGroup,
+                        riskSigner: riskAndFeeSigner,
+                        traderRiskStateAcct: riskStateAccount.publicKey,
+                        traderFeeStateAcct: traderFeeAccount,
+                        riskEngineProgram: mpg.riskEngineProgramId,
+                        feeModelConfigurationAcct: mpg.feeModelConfigurationAcct,
+                        feeModelProgram: mpg.feeModelProgramId,
+                        systemProgram: web3.SystemProgram.programId,
+                    }
+                })
             );
             try {
-                let { blockhash } = await connection.getRecentBlockhash();
+                let { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash();
                 tx.recentBlockhash = blockhash;
                 tx.feePayer = wallet.publicKey;
                 tx.sign(traderRiskGroup, riskStateAccount);
                 const signedTx = await wallet.signTransaction(tx);
                 const sig = await connection.sendRawTransaction(signedTx.serialize());
-                await connection.confirmTransaction(sig); // TODO: indicate to user that the transaction is being confirmed
+                await connection.confirmTransaction({
+                    signature: sig,
+                    blockhash,
+                    lastValidBlockHeight
+                }); // TODO: indicate to user that the transaction is being confirmed
+                return { sig }
             } catch (e) {
-                console.error(e);
-                console.error(e.logs);
-                return null;
+                return e;
             }
         }
         return traderRiskGroup.publicKey;
     }
 
-    async fetchOrderbooks(marketProductGroup: web3.PublicKey = null)  {
+    async fetchOrderbooks(marketProductGroup: web3.PublicKey = null) {
         const confirmOptions: web3.ConfirmOptions = { preflightCommitment: 'processed' }; // TODO: pull from this
         for (const [k, { pubkey, mpg, orderbooks, covarianceMetadata }] of this.fields.mpgs) {
             if (marketProductGroup !== null && !pubkey.equals(marketProductGroup)) {
@@ -1099,7 +1107,7 @@ export class Manifest {
             this.fields.mpgs.set(k, { pubkey, mpg, orderbooks, covarianceMetadata });
         }
     }
-    async fetchOrderbook(orderbook: web3.PublicKey)  {
+    async fetchOrderbook(orderbook: web3.PublicKey) {
         const confirmOptions: web3.ConfirmOptions = { preflightCommitment: 'processed' }; // TODO: pull from this
         let result = null;
         for (const [k, { pubkey, mpg, orderbooks, covarianceMetadata }] of this.fields.mpgs) {
@@ -1148,7 +1156,7 @@ export class Manifest {
             try {
                 obj.covarianceMetadata = await this.getCovarianceMetadata(obj.pubkey, obj.mpg);
                 newMpgs.set(k, obj);
-            } catch (e) {} // allow missing covariance metadatas
+            } catch (e) { } // allow missing covariance metadatas
         }
         this.fields.mpgs = newMpgs;
     }
@@ -1156,9 +1164,9 @@ export class Manifest {
     // gets BN representation of 'size' bytes at 'offset' within data (uint8array)
     static GetRiskNumber(data, offset, size, isSigned = true) {
         if (isSigned) {
-            return new BN(data.slice(offset,offset+size), undefined, 'le').fromTwos(size*8);
+            return new BN(data.slice(offset, offset + size), undefined, 'le').fromTwos(size * 8);
         }
-        return new BN(data.slice(offset,offset+size), undefined, 'le');
+        return new BN(data.slice(offset, offset + size), undefined, 'le');
     }
 
     getStds(marketProductGroup: web3.PublicKey) {
@@ -1171,8 +1179,8 @@ export class Manifest {
         offset += 8;
         let stds = new Map();
         for (let i = 0; i < numActiveProducts; i++) {
-            const pubkey = new web3.PublicKey(covarianceMetadata.slice(offset+32*i,offset+32*(i+1)));
-            const std = Manifest.FromFastInt(Manifest.GetRiskNumber(covarianceMetadata, offset+MAX_OUTRIGHTS*32+16*i, 16, true));
+            const pubkey = new web3.PublicKey(covarianceMetadata.slice(offset + 32 * i, offset + 32 * (i + 1)));
+            const std = Manifest.FromFastInt(Manifest.GetRiskNumber(covarianceMetadata, offset + MAX_OUTRIGHTS * 32 + 16 * i, 16, true));
             stds.set(pubkey.toBase58(), std);
         }
         return stds;
@@ -1198,18 +1206,20 @@ async function getManifest(rpc: string, useCache = false, wallet: DexterityWalle
 
     const accounts = await connection.getParsedProgramAccounts(
         DEX_ID,
-        { filters: [
-            {
-                memcmp: {
-                    offset: 0,
-                    bytes: '4jPEYxHLRVw', // base58-encoded string representation of the MPG anchor discriminator
+        {
+            filters: [
+                {
+                    memcmp: {
+                        offset: 0,
+                        bytes: '4jPEYxHLRVw', // base58-encoded string representation of the MPG anchor discriminator
+                    },
+                    // memcmp: {
+                    //     offset: 8,
+                    //     bytes: '2', // base58-encoded string representation of the number 1, the account tag for MPGs
+                    // },
                 },
-                // memcmp: {
-                //     offset: 8,
-                //     bytes: '2', // base58-encoded string representation of the number 1, the account tag for MPGs
-                // },
-            },
-        ] }
+            ]
+        }
     );
     const mpgs = new Map();
     for (const [i, { account, pubkey }] of accounts.entries()) {
@@ -1447,14 +1457,14 @@ class Fractional {
             return Fractional.Nan();
         }
         let m = this.m;
-	let exp = this.exp;
-	if (!exp.umod(new BN(2)).isZero()) {
-	    exp = exp.add(new BN(1));
-	    m = m.mul(new BN(10));
-	}
-	m = m.mul(new BN(1000000));
-	exp = exp.add(new BN(6));
-        return new Fractional(bnSqrt(this.m), exp.sub(new BN(6+3))).reduced();
+        let exp = this.exp;
+        if (!exp.umod(new BN(2)).isZero()) {
+            exp = exp.add(new BN(1));
+            m = m.mul(new BN(10));
+        }
+        m = m.mul(new BN(1000000));
+        exp = exp.add(new BN(6));
+        return new Fractional(bnSqrt(this.m), exp.sub(new BN(6 + 3))).reduced();
     }
 
     abs(): Fractional {
@@ -1484,8 +1494,8 @@ class Fractional {
         if (this._isNan || other._isNan) {
             return Fractional.Nan();
         }
-	const r1 = this.reduced();
-	const r2 = other.reduced();
+        const r1 = this.reduced();
+        const r2 = other.reduced();
         return new Fractional(
             r1.m.mul(r2.m),
             r1.exp.add(r2.exp),
@@ -1588,8 +1598,8 @@ class Fractional {
         }
         let result;
         if (reduced.exp < mstr.length) {
-            result = (mstr.slice(0, mstr.length-reduced.exp) + '.' + mstr.slice(-reduced.exp))
-                         .replace(/0*$/g, '').replace(/\.$/g, '');
+            result = (mstr.slice(0, mstr.length - reduced.exp) + '.' + mstr.slice(-reduced.exp))
+                .replace(/0*$/g, '').replace(/\.$/g, '');
         } else {
             result = ('0.' + '0'.repeat(reduced.exp - mstr.length) + mstr).replace(/0*$/g, '').replace(/\.$/g, '');
         }
@@ -1630,13 +1640,13 @@ function getEnumVariantAsString(someEnum) {
 }
 
 function getPriceDecimals(meta) {
-//     // this is so hacky lol
-//     let tickSize = Fractional.From(meta.tickSize).toString();
-//     const i = tickSize.indexOf('.');
-//     if (i !== -1) {
-//         return tickSize.length - i - 1;
-//     }
-//     return 0;
+    //     // this is so hacky lol
+    //     let tickSize = Fractional.From(meta.tickSize).toString();
+    //     const i = tickSize.indexOf('.');
+    //     if (i !== -1) {
+    //         return tickSize.length - i - 1;
+    //     }
+    //     return 0;
     return meta.tickSize.exp.toNumber(); // assuming no trailing zeros
 }
 
@@ -1792,14 +1802,14 @@ export class Trader {
                 isLong: Number(size) > 0,
                 productName: productName.trim(),
             }));
-      
+
         if (positions.length === 0) return [];
-      
+
         const positionsAvgEntry: AvgEntries[] = [];
-      
+
         for (const position of positions) {
             const avgEntry = await this.calculateAverageEntryPrice(position.productName, position.size, this.traderRiskGroup.toBase58());
-            
+
             positionsAvgEntry.push({
                 productName: position.productName,
                 avgEntry,
@@ -1807,11 +1817,11 @@ export class Trader {
                 isLong: position.isLong,
             });
         }
-      
+
         return positionsAvgEntry;
-      }
-      
-      async getFills(productName: string, trg: web3.PublicKey, mpg?: web3.PublicKey, before?: number, limit?: number, after?: number) {
+    }
+
+    async getFills(productName: string, trg: web3.PublicKey, mpg?: web3.PublicKey, before?: number, limit?: number, after?: number) {
         try {
             let url = `${this.manifest.base_api_url}/fills?product=${productName}`;
             if (trg != null) {
@@ -1835,11 +1845,11 @@ export class Trader {
                     Accept: 'application/json',
                 },
             });
-      
+
             if (!response.ok) {
                 throw new Error(`Failed to fetch fills: ${response.status}`);
             }
-      
+
             const result = (await response.json()) as GetFillsResponse;
             return result;
         } catch (error) {
@@ -1851,80 +1861,80 @@ export class Trader {
                 return
             }
         }
-      }
+    }
 
-      async calculateAverageEntryPrice(
+    async calculateAverageEntryPrice(
         product: string,
         targetSize: number,
         trg: string
-      ): Promise<number> {
+    ): Promise<number> {
         let totalCost = 0;
         let netPosition = 0;
         let avgEntryPrice = 0;
         let before: number | undefined;
-      
+
         const isShort = targetSize < 0;
         const absTargetSize = Math.abs(targetSize);
-      
+
         do {
-          let fills = (
-            await this.getFills(
-              product.trim(),
-              new web3.PublicKey(trg),
-              undefined,
-              before
-            )
-          )?.fills;
-      
-          if (!fills) {
-            console.log("No fills");
-            break;
-          }
-      
-          if (fills.length === 0) {
-            console.log("Empty");
-            break;
-          }
-      
-          for (const fill of fills) {
-            if (fill.taker_side === (isShort ? "ask" : "bid")) {
-              // Entering or increasing a position
-              const effectiveSize = isShort ? -fill.base_size : fill.base_size;
-              if (Math.abs(netPosition) + Math.abs(effectiveSize) >= absTargetSize) {
-                const partialSize = absTargetSize - Math.abs(netPosition);
-                totalCost += partialSize * fill.price * (isShort ? -1 : 1);
-                netPosition +=
-                  effectiveSize * (partialSize / Math.abs(effectiveSize));
+            let fills = (
+                await this.getFills(
+                    product.trim(),
+                    new web3.PublicKey(trg),
+                    undefined,
+                    before
+                )
+            )?.fills;
+
+            if (!fills) {
+                console.log("No fills");
                 break;
-              } else {
-                totalCost += effectiveSize * fill.price;
-                netPosition += effectiveSize;
-              }
-            } else if (fill.taker_side === (isShort ? "bid" : "ask")) {
-              // Reducing a position
-              totalCost -= fill.base_size * fill.price * (isShort ? -1 : 1);
-              netPosition -= fill.base_size * (isShort ? -1 : 1);
             }
-      
-            if (Math.abs(netPosition) >= absTargetSize) break;
-          }
-      
-          const lastFillTimestamp = fills[fills.length - 1]?.block_timestamp;
-          before = lastFillTimestamp
-            ? new Date(lastFillTimestamp).getTime() / 1000
-            : undefined;
+
+            if (fills.length === 0) {
+                console.log("Empty");
+                break;
+            }
+
+            for (const fill of fills) {
+                if (fill.taker_side === (isShort ? "ask" : "bid")) {
+                    // Entering or increasing a position
+                    const effectiveSize = isShort ? -fill.base_size : fill.base_size;
+                    if (Math.abs(netPosition) + Math.abs(effectiveSize) >= absTargetSize) {
+                        const partialSize = absTargetSize - Math.abs(netPosition);
+                        totalCost += partialSize * fill.price * (isShort ? -1 : 1);
+                        netPosition +=
+                            effectiveSize * (partialSize / Math.abs(effectiveSize));
+                        break;
+                    } else {
+                        totalCost += effectiveSize * fill.price;
+                        netPosition += effectiveSize;
+                    }
+                } else if (fill.taker_side === (isShort ? "bid" : "ask")) {
+                    // Reducing a position
+                    totalCost -= fill.base_size * fill.price * (isShort ? -1 : 1);
+                    netPosition -= fill.base_size * (isShort ? -1 : 1);
+                }
+
+                if (Math.abs(netPosition) >= absTargetSize) break;
+            }
+
+            const lastFillTimestamp = fills[fills.length - 1]?.block_timestamp;
+            before = lastFillTimestamp
+                ? new Date(lastFillTimestamp).getTime() / 1000
+                : undefined;
         } while (Math.abs(netPosition) < absTargetSize);
-      
+
         if (netPosition !== 0)
-          avgEntryPrice = Math.abs(
-            Math.floor((totalCost / netPosition) * 1000) / 1000
-          );
-      
+            avgEntryPrice = Math.abs(
+                Math.floor((totalCost / netPosition) * 1000) / 1000
+            );
+
         return avgEntryPrice;
     }
 
-    getMultiplaceIx(productIndex, orders, referrerTrg=null, referrerFeeBps=null, matchLimit=null) {
-        
+    getMultiplaceIx(productIndex, orders, referrerTrg = null, referrerFeeBps = null, matchLimit = null) {
+
         // isBid, limitPrice: Fractional, maxBaseQty: Fractional, orderType=OrderType.Limit, clientOrderId=null,
 
         const products = this.getProducts();
@@ -1961,10 +1971,10 @@ export class Trader {
             const { isBid, orderType, maxBaseQty, limitPrice, clientOrderId } = order;
             const side = isBid ? { bid: {} } : { ask: {} };
             let oType;
-            if (orderType == OrderType.FillOrKill) oType = {fillOrKill: {}};
-            else if (orderType == OrderType.ImmediateOrCancel) oType = {immediateOrCancel: {}};
-            else if (orderType == OrderType.PostOnly) oType = {postOnly: {}};
-            else oType = {limit: {}};
+            if (orderType == OrderType.FillOrKill) oType = { fillOrKill: {} };
+            else if (orderType == OrderType.ImmediateOrCancel) oType = { immediateOrCancel: {} };
+            else if (orderType == OrderType.PostOnly) oType = { postOnly: {} };
+            else oType = { limit: {} };
             params.orders.push({
                 side,
                 maxBaseQty: {
@@ -1986,39 +1996,41 @@ export class Trader {
             ],
             new web3.PublicKey(STAKING_ID),
         )[0];
-        return this.manifest.fields.dexProgram.instruction.multiplace(params, { accounts: {
-            // @ts-ignore
-            user: this.manifest.fields.wallet.publicKey,
-            traderRiskGroup: this.traderRiskGroup,
-            marketProductGroup: this.marketProductGroup,
-            product: productPk,
-            aaobProgram: this.manifest.fields.aaob_id,
-            orderbook: orderbookPk,
-            marketSigner: orderbook.callerAuthority,
-            eventQueue: orderbook.eventQueue,
-            bids: orderbook.bids,
-            asks: orderbook.asks,
-            systemProgram: web3.SystemProgram.programId,
-            feeModelProgram: this.mpg.feeModelProgramId,
-            feeModelConfigurationAcct: this.mpg.feeModelConfigurationAcct,
-            traderFeeStateAcct: this.trg.feeStateAccount,
-            feeOutputRegister: this.mpg.feeOutputRegister,
-            riskEngineProgram: this.mpg.riskEngineProgramId,
-            riskModelConfigurationAcct: this.mpg.riskModelConfigurationAcct,
-            riskOutputRegister: this.mpg.riskOutputRegister,
-            traderRiskStateAcct: this.trg.riskStateAccount,
-            riskAndFeeSigner: Manifest.GetRiskAndFeeSigner(this.marketProductGroup),
-            covarianceMetadata: this.manifest.getRiskS(this.marketProductGroup, this.mpg),
-            correlationMatrix: this.manifest.getRiskR(this.marketProductGroup, this.mpg),
-            markPrices: this.markPricesAccount,
-            referrerTrg: referrerTrg ?? this.traderRiskGroup,
-            stakePool: Manifest.GetStakePool(),
-            stakerState: stakerStateKey,
-        }});
+        return this.manifest.fields.dexProgram.instruction.multiplace(params, {
+            accounts: {
+                // @ts-ignore
+                user: this.manifest.fields.wallet.publicKey,
+                traderRiskGroup: this.traderRiskGroup,
+                marketProductGroup: this.marketProductGroup,
+                product: productPk,
+                aaobProgram: this.manifest.fields.aaob_id,
+                orderbook: orderbookPk,
+                marketSigner: orderbook.callerAuthority,
+                eventQueue: orderbook.eventQueue,
+                bids: orderbook.bids,
+                asks: orderbook.asks,
+                systemProgram: web3.SystemProgram.programId,
+                feeModelProgram: this.mpg.feeModelProgramId,
+                feeModelConfigurationAcct: this.mpg.feeModelConfigurationAcct,
+                traderFeeStateAcct: this.trg.feeStateAccount,
+                feeOutputRegister: this.mpg.feeOutputRegister,
+                riskEngineProgram: this.mpg.riskEngineProgramId,
+                riskModelConfigurationAcct: this.mpg.riskModelConfigurationAcct,
+                riskOutputRegister: this.mpg.riskOutputRegister,
+                traderRiskStateAcct: this.trg.riskStateAccount,
+                riskAndFeeSigner: Manifest.GetRiskAndFeeSigner(this.marketProductGroup),
+                covarianceMetadata: this.manifest.getRiskS(this.marketProductGroup, this.mpg),
+                correlationMatrix: this.manifest.getRiskR(this.marketProductGroup, this.mpg),
+                markPrices: this.markPricesAccount,
+                referrerTrg: referrerTrg ?? this.traderRiskGroup,
+                stakePool: Manifest.GetStakePool(),
+                stakerState: stakerStateKey,
+            }
+        });
     }
 
     getNewOrderIx(productIndex, isBid, limitPrice: Fractional, maxBaseQty: Fractional,
-                  orderType=OrderType.Limit, referrerTrg=null, referrerFeeBps=null, clientOrderId=null, matchLimit=null) {
+        orderType = OrderType.Limit, referrerTrg = null, referrerFeeBps = null, clientOrderId = null, matchLimit = null) {
         const products = this.getProducts();
         let product = null;
         for (let { index, product: someProduct } of products.values()) {
@@ -2041,10 +2053,10 @@ export class Trader {
         const orderbook = orderbooks.get(orderbookPk.toBase58());
         const side = isBid ? { bid: {} } : { ask: {} };
         let oType;
-        if (orderType == OrderType.FillOrKill) oType = {fillOrKill: {}};
-        else if (orderType == OrderType.ImmediateOrCancel) oType = {immediateOrCancel: {}};
-        else if (orderType == OrderType.PostOnly) oType = {postOnly: {}};
-        else oType = {limit: {}};
+        if (orderType == OrderType.FillOrKill) oType = { fillOrKill: {} };
+        else if (orderType == OrderType.ImmediateOrCancel) oType = { immediateOrCancel: {} };
+        else if (orderType == OrderType.PostOnly) oType = { postOnly: {} };
+        else oType = { limit: {} };
         const params = {
             side,
             maxBaseQty: {
@@ -2071,58 +2083,60 @@ export class Trader {
             ],
             new web3.PublicKey(STAKING_ID),
         )[0];
-        return this.manifest.fields.dexProgram.instruction.newOrder(params, { accounts: {
-            // @ts-ignore
-            user: this.manifest.fields.wallet.publicKey,
-            traderRiskGroup: this.traderRiskGroup,
-            marketProductGroup: this.marketProductGroup,
-            product: productPk,
-            aaobProgram: this.manifest.fields.aaob_id,
-            orderbook: orderbookPk,
-            marketSigner: orderbook.callerAuthority,
-            eventQueue: orderbook.eventQueue,
-            bids: orderbook.bids,
-            asks: orderbook.asks,
-            systemProgram: web3.SystemProgram.programId,
-            feeModelProgram: this.mpg.feeModelProgramId,
-            feeModelConfigurationAcct: this.mpg.feeModelConfigurationAcct,
-            traderFeeStateAcct: this.trg.feeStateAccount,
-            feeOutputRegister: this.mpg.feeOutputRegister,
-            riskEngineProgram: this.mpg.riskEngineProgramId,
-            riskModelConfigurationAcct: this.mpg.riskModelConfigurationAcct,
-            riskOutputRegister: this.mpg.riskOutputRegister,
-            traderRiskStateAcct: this.trg.riskStateAccount,
-            riskAndFeeSigner: Manifest.GetRiskAndFeeSigner(this.marketProductGroup),
-            covarianceMetadata: this.manifest.getRiskS(this.marketProductGroup, this.mpg),
-            correlationMatrix: this.manifest.getRiskR(this.marketProductGroup, this.mpg),
-            markPrices: this.markPricesAccount,
-            referrerTrg: referrerTrg ?? this.traderRiskGroup,
-            stakePool: Manifest.GetStakePool(),
-            stakerState: stakerStateKey,
-        }});
+        return this.manifest.fields.dexProgram.instruction.newOrder(params, {
+            accounts: {
+                // @ts-ignore
+                user: this.manifest.fields.wallet.publicKey,
+                traderRiskGroup: this.traderRiskGroup,
+                marketProductGroup: this.marketProductGroup,
+                product: productPk,
+                aaobProgram: this.manifest.fields.aaob_id,
+                orderbook: orderbookPk,
+                marketSigner: orderbook.callerAuthority,
+                eventQueue: orderbook.eventQueue,
+                bids: orderbook.bids,
+                asks: orderbook.asks,
+                systemProgram: web3.SystemProgram.programId,
+                feeModelProgram: this.mpg.feeModelProgramId,
+                feeModelConfigurationAcct: this.mpg.feeModelConfigurationAcct,
+                traderFeeStateAcct: this.trg.feeStateAccount,
+                feeOutputRegister: this.mpg.feeOutputRegister,
+                riskEngineProgram: this.mpg.riskEngineProgramId,
+                riskModelConfigurationAcct: this.mpg.riskModelConfigurationAcct,
+                riskOutputRegister: this.mpg.riskOutputRegister,
+                traderRiskStateAcct: this.trg.riskStateAccount,
+                riskAndFeeSigner: Manifest.GetRiskAndFeeSigner(this.marketProductGroup),
+                covarianceMetadata: this.manifest.getRiskS(this.marketProductGroup, this.mpg),
+                correlationMatrix: this.manifest.getRiskR(this.marketProductGroup, this.mpg),
+                markPrices: this.markPricesAccount,
+                referrerTrg: referrerTrg ?? this.traderRiskGroup,
+                stakePool: Manifest.GetStakePool(),
+                stakerState: stakerStateKey,
+            }
+        });
     }
 
     async newOrder(productIndex, isBid, limitPrice: Fractional, maxBaseQty: Fractional,
-                   orderType=OrderType.Limit, referrerTrg=null, referrerFeeBps=null, clientOrderId=null,
-                   matchLimit=null,
-                   callbacks,
-                  ) {
+        orderType = OrderType.Limit, referrerTrg = null, referrerFeeBps = null, clientOrderId = null,
+        matchLimit = null,
+        callbacks,
+    ) {
         const ixs = [web3.ComputeBudgetProgram.setComputeUnitLimit({ units: MAX_COMPUTE_UNITS })];
         if (this.addressLookupTableAccount) {
             ixs.push(this.getUpdateMarkPricesIx());
         }
         ixs.push(this.getNewOrderIx(
-                productIndex, isBid, limitPrice, maxBaseQty, orderType,
-                referrerTrg, referrerFeeBps, clientOrderId, matchLimit
+            productIndex, isBid, limitPrice, maxBaseQty, orderType,
+            referrerTrg, referrerFeeBps, clientOrderId, matchLimit
         ));
         return await this.sendTx(ixs, callbacks);
     }
 
     async justNewOrder(productIndex, isBid, limitPrice: Fractional, maxBaseQty: Fractional,
-                   orderType=OrderType.Limit, referrerTrg=null, referrerFeeBps=null, clientOrderId=null,
-                   matchLimit=null,
-                   callbacks
-                  ) {
+        orderType = OrderType.Limit, referrerTrg = null, referrerFeeBps = null, clientOrderId = null,
+        matchLimit = null,
+        callbacks
+    ) {
         return await this.sendTx([
             web3.ComputeBudgetProgram.setComputeUnitLimit({ units: MAX_COMPUTE_UNITS }),
             this.getNewOrderIx(
@@ -2357,6 +2371,10 @@ export class Trader {
 
             let ptr = this.trg.openOrders.products[index].headIndex;
             let order = this.trg.openOrders.orders[ptr];
+            if (!order) {
+                console.log("Order not found, returning...")
+                return
+            }
             if (order.prev !== SENTINEL) {
                 throw new Error('openOrders state is invalid. expected first order.prev === SENTINEL\norder: ' + JSON.stringify(order));
             }
@@ -2646,14 +2664,14 @@ export class Trader {
         const accounts = {
             tokenProgram: TOKEN_PROGRAM_ID,
             user: this.manifest.fields.wallet.publicKey,
-            userTokenAccount:  tradersVaultATA,
+            userTokenAccount: tradersVaultATA,
             traderRiskGroup: this.traderRiskGroup,
             marketProductGroup: this.marketProductGroup,
             marketProductGroupVault: vaultNotMint,
             capitalLimits: capitalLimits,
             whitelistAtaAcct: capitalLimits, // WHITELIST IS UNUSED SO JUST PASS IN AN ARBITRARY ACCOUNT
         };
-        const params = { quantity: { m: usdcAmount.m,  exp: usdcAmount.exp } };
+        const params = { quantity: { m: usdcAmount.m, exp: usdcAmount.exp } };
         return this.manifest.fields.dexProgram.instruction.depositFunds(params, { accounts });
     }
 
@@ -2678,8 +2696,7 @@ export class Trader {
     }
 
     async sendV0Tx(ixs, { onGettingBlockHashFn, onGotBlockHashFn, onTxSentFn }
-        = { onGettingBlockHashFn: null, onGotBlockHashFn: null, onTxSentFn: null})
-    {
+        = { onGettingBlockHashFn: null, onGotBlockHashFn: null, onTxSentFn: null }) {
         // @ts-ignore
         const wallet = this.manifest.fields.dexProgram.provider.wallet;
         const addressLookupTableAccounts = this.addressLookupTableAccount ? [this.addressLookupTableAccount] : [];
@@ -2688,7 +2705,7 @@ export class Trader {
         if (onGettingBlockHashFn) {
             onGettingBlockHashFn();
         }
-        let { blockhash } = await connection.getRecentBlockhash();
+        let { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash();
         if (onGettingBlockHashFn) {
             onGettingBlockHashFn();
         }
@@ -2703,12 +2720,16 @@ export class Trader {
         if (onTxSentFn) {
             onTxSentFn(signature);
         }
-        await connection.confirmTransaction(signature);
+        await connection.confirmTransaction({
+            signature,
+            lastValidBlockHeight,
+            blockhash
+        });
         return signature;
     }
 
     async sendLegacyTx(ixs, { onGettingBlockHashFn, onGotBlockHashFn, onTxSentFn }
-        = { onGettingBlockHashFn: null, onGotBlockHashFn: null, onTxSentFn: null}) {
+        = { onGettingBlockHashFn: null, onGotBlockHashFn: null, onTxSentFn: null }) {
         // @ts-ignore
         const wallet = this.manifest.fields.dexProgram.provider.wallet;
         const connection = this.manifest.fields.dexProgram.provider.connection;
@@ -2721,7 +2742,7 @@ export class Trader {
         if (onGettingBlockHashFn) {
             onGettingBlockHashFn();
         }
-        let { blockhash } = await connection.getRecentBlockhash();
+        let { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash();
         if (onGettingBlockHashFn) {
             onGettingBlockHashFn();
         }
@@ -2732,7 +2753,11 @@ export class Trader {
         if (onTxSentFn) {
             onTxSentFn(signature);
         }
-        await connection.confirmTransaction(signature);
+        await connection.confirmTransaction({
+            signature,
+            lastValidBlockHeight,
+            blockhash
+        });
         return signature;
     }
 
@@ -2785,49 +2810,49 @@ export class Trader {
      * @returns {Promise<web3.TransactionInstruction[]>} TransactionInstruction Array
      */
     async getWithdrawIx(usdcAmount: Fractional): Promise<web3.TransactionInstruction[]> {
-            const tradersVaultATA = await Manifest.GetATAFromMPGObject(this.mpg, this.manifest.fields.wallet.publicKey);
-            const tradersVaultATAInfo = await this.manifest.fields.connection.getAccountInfo(tradersVaultATA);
-            let createAtaIx = null;
-            if (!tradersVaultATAInfo) {
-                createAtaIx = createAssociatedTokenAccountInstruction(
-                    this.manifest.fields.wallet.publicKey, // fee payer
-                    tradersVaultATA, // ata
-                    this.manifest.fields.wallet.publicKey, // owner,
-                    this.mpg.vaultMint, // mint
-                );
-                // console.log('creating traders ata for withdraw because it does not exist');
-            }
-            const vaultNotMint = web3.PublicKey.findProgramAddressSync([Buffer.from("market_vault", "utf-8"), this.marketProductGroup.toBuffer()], new web3.PublicKey(DEX_ID))[0];
-            const capitalLimits = web3.PublicKey.findProgramAddressSync([Buffer.from("capital_limits_state", "utf-8"), this.marketProductGroup.toBuffer()], new web3.PublicKey(DEX_ID))[0];
-            // console.log('tradersVaultATA:', tradersVaultATA.toString(), 'vaultNotMint:', vaultNotMint.toString(), 'capitalLimits:', capitalLimits.toString());
-            const accounts = {
-                tokenProgram: TOKEN_PROGRAM_ID,
-                user: this.manifest.fields.wallet.publicKey,
-                userTokenAccount:  tradersVaultATA,
-                traderRiskGroup: this.traderRiskGroup,
-                marketProductGroup: this.marketProductGroup,
-                marketProductGroupVault: vaultNotMint,
-                riskEngineProgram: this.mpg.riskEngineProgramId,
-                riskModelConfigurationAcct: this.mpg.riskModelConfigurationAcct,
-                riskOutputRegister: this.mpg.riskOutputRegister,
-                traderRiskStateAcct: this.trg.riskStateAccount,
-                riskSigner: Manifest.GetRiskAndFeeSigner(this.marketProductGroup),
-                covarianceMetadata: this.manifest.getRiskS(this.marketProductGroup, this.mpg),
-                correlationMatrix: this.manifest.getRiskR(this.marketProductGroup, this.mpg),
-                capitalLimits: capitalLimits,
-                markPrices: this.markPricesAccount,
-            };
-            const ixArr: web3.TransactionInstruction[] = []
-            if (createAtaIx !== null) {
-                ixArr.push(createAtaIx);
-            }
-            ixArr.push(
-                this.manifest.fields.dexProgram.instruction.withdrawFunds(
-                    { quantity: { m: usdcAmount.m,  exp: usdcAmount.exp } },
-                    { accounts }
-                )
+        const tradersVaultATA = await Manifest.GetATAFromMPGObject(this.mpg, this.manifest.fields.wallet.publicKey);
+        const tradersVaultATAInfo = await this.manifest.fields.connection.getAccountInfo(tradersVaultATA);
+        let createAtaIx = null;
+        if (!tradersVaultATAInfo) {
+            createAtaIx = createAssociatedTokenAccountInstruction(
+                this.manifest.fields.wallet.publicKey, // fee payer
+                tradersVaultATA, // ata
+                this.manifest.fields.wallet.publicKey, // owner,
+                this.mpg.vaultMint, // mint
             );
-            return ixArr
+            // console.log('creating traders ata for withdraw because it does not exist');
+        }
+        const vaultNotMint = web3.PublicKey.findProgramAddressSync([Buffer.from("market_vault", "utf-8"), this.marketProductGroup.toBuffer()], new web3.PublicKey(DEX_ID))[0];
+        const capitalLimits = web3.PublicKey.findProgramAddressSync([Buffer.from("capital_limits_state", "utf-8"), this.marketProductGroup.toBuffer()], new web3.PublicKey(DEX_ID))[0];
+        // console.log('tradersVaultATA:', tradersVaultATA.toString(), 'vaultNotMint:', vaultNotMint.toString(), 'capitalLimits:', capitalLimits.toString());
+        const accounts = {
+            tokenProgram: TOKEN_PROGRAM_ID,
+            user: this.manifest.fields.wallet.publicKey,
+            userTokenAccount: tradersVaultATA,
+            traderRiskGroup: this.traderRiskGroup,
+            marketProductGroup: this.marketProductGroup,
+            marketProductGroupVault: vaultNotMint,
+            riskEngineProgram: this.mpg.riskEngineProgramId,
+            riskModelConfigurationAcct: this.mpg.riskModelConfigurationAcct,
+            riskOutputRegister: this.mpg.riskOutputRegister,
+            traderRiskStateAcct: this.trg.riskStateAccount,
+            riskSigner: Manifest.GetRiskAndFeeSigner(this.marketProductGroup),
+            covarianceMetadata: this.manifest.getRiskS(this.marketProductGroup, this.mpg),
+            correlationMatrix: this.manifest.getRiskR(this.marketProductGroup, this.mpg),
+            capitalLimits: capitalLimits,
+            markPrices: this.markPricesAccount,
+        };
+        const ixArr: web3.TransactionInstruction[] = []
+        if (createAtaIx !== null) {
+            ixArr.push(createAtaIx);
+        }
+        ixArr.push(
+            this.manifest.fields.dexProgram.instruction.withdrawFunds(
+                { quantity: { m: usdcAmount.m, exp: usdcAmount.exp } },
+                { accounts }
+            )
+        );
+        return ixArr
     }
 
     async withdraw(usdcAmount: Fractional, callbacks: any): Promise<string> {
@@ -3105,7 +3130,7 @@ export class Trader {
         }
         if (!this.skipThingsThatRequireWalletConnection) {
             if (this.trg.owner.toBase58() !== this.manifest.fields.wallet.publicKey.toBase58()) {
-                throw new Error('Expected this.trg.owner === given wallet pubkey. '+
+                throw new Error('Expected this.trg.owner === given wallet pubkey. ' +
                     'this.trg.owner: ' + this.trg.owner.toBase58() + '. wallet pubkey: ' + this.manifest.fields.wallet.publicKey.toBase58());
             }
         }

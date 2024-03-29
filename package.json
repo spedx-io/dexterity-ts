@@ -1,7 +1,7 @@
 {
     "name": "@pepperdex/dexterity-ts",
     "repository": "https://github.com/spedx-io/dexterity-ts",
-    "version": "1.0.9",
+    "version": "1.0.10",
     "license": "MIT",
     "source": "src/index.ts",
     "main": "dist/main.js",
